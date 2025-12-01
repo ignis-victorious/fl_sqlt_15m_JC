@@ -1,22 +1,27 @@
-#
-#  Import LIBRARIES
-import sqlite3  # noqa: F401
+import os
+import sqlite3
 from sqlite3 import Connection, Cursor
 
 import flet as ft  # type: ignore
 
-#  Import FILES
-#
-#  _______________________
+# _______________________
+# CONFIGURATION
+# _______________________
 
-dados_db: str = "./storage/data/dados.db"
+# Ensure the directory exists before connecting
+conctat_data_db: str = "./storage/data/conctat_data.db"
+os.makedirs(os.path.dirname(conctat_data_db), exist_ok=True)
+
+# _______________________
+# DATABASE FUNCTIONS
+# _______________________
 
 
-def iniciar_banco() -> None:
-    con: Connection = sqlite3.connect(database=dados_db)
+def start_db() -> None:
+    con: Connection = sqlite3.connect(database=conctat_data_db)
     cur: Cursor = con.cursor()
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS contatos (
+        CREATE TABLE IF NOT EXISTS contact (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT,
             telefone TEXT
@@ -26,118 +31,123 @@ def iniciar_banco() -> None:
     con.close()
 
 
-def ler_do_banco() -> list[int | str]:
-    con: Connection = sqlite3.connect(database=dados_db)
+def read_from__database() -> list[tuple[int, str, str]]:
+    con: Connection = sqlite3.connect(database=conctat_data_db)
     cur: Cursor = con.cursor()
-    cur.execute("SELECT * FROM contatos")
-    resultado: list[int | str] = cur.fetchall()
-    print(resultado)
+    cur.execute("SELECT * FROM contact")
+    result: list[tuple[int, str, str]] = cur.fetchall()
     con.close()
-    return resultado
+    return result
 
 
-def salvar_no_banco(nome: str, telefone: str) -> None:
-    con: Connection = sqlite3.connect(database=dados_db)
+def save_to_database(nome: str, telefone: str) -> None:
+    con: Connection = sqlite3.connect(database=conctat_data_db)
     cur: Cursor = con.cursor()
-    cur.execute("INSERT INTO contatos (nome, telefone) VALUES (?, ?)", (nome, telefone))
+    cur.execute("INSERT INTO contact (nome, telefone) VALUES (?, ?)", (nome, telefone))
     con.commit()
     con.close()
 
 
-def deletar_do_banco(id_contato: int) -> None:
-    con: Connection = sqlite3.connect(database=dados_db)
+def delete_from_database(id_conctat: int) -> None:
+    con: Connection = sqlite3.connect(database=conctat_data_db)
     cur: Cursor = con.cursor()
-    cur.execute("DELETE FROM contatos WHERE id = ?", (id_contato,))
+    cur.execute("DELETE FROM contact WHERE id = ?", (id_conctat,))
     con.commit()
     con.close()
 
 
-# iniciar_banco()
-# salvar_no_banco(nome="Emagnu", telefone="+39-7172388386")
-# salvar_no_banco(nome="Elle", telefone="+44-123456789")
-# ler_do_banco()
-
-# print("Done!!!")
-# iniciar_banco()
+# _______________________
+# MAIN APP
+# _______________________
 
 
 def main(page: ft.Page) -> None:
-    page.title = "Minha Agenda SQLite"
-    page.window.width = 400
-    page.window.height = 600
+    page.title = "SQLite Phonebook"
+    page.window.width = 400  # Updated from page.window.width
+    page.window.height = 600  # Updated from page.window.height
+    # page.scroll = "AUTO"  # Allows scrolling if list gets long
 
-    iniciar_banco()
+    # Initialize DB table
+    start_db()
 
-    nome_input = ft.TextField(label="Nome", hint_text="Digite o nome")
-    telefone_input = ft.TextField(label="Telefone", hint_text="Digite o número")
-    print(f"nome_input={nome_input}, telefone_input={telefone_input}")
-    lista_contatos = ft.Column()
+    # Create Controls
+    nome_input = ft.TextField(label="Name", hint_text="Enter the contact name")
+    telephone_input = ft.TextField(label="Mobile", hint_text="Enter the mobile number")
 
-    page.add(nome_input, telefone_input)
+    # We define the list container here
+    contact_list = ft.Column()
 
-    lista_contatos = ft.Column()
+    # --- LOGIC FUNCTIONS ---
+    # def delete_contact(e: ft.ControlEvent) -> None:
+    #     # FIX: Check type to prevent "Unknown type" error
+    #     button = e.control
+    #     assert isinstance(button, ft.IconButton)
 
-    def carregar_dados() -> None:
-        lista_contatos.controls.clear()
+    #     id_to_delete = button.data
+    #     delete_from_database(id_to_delete)
+    #     load_data()  # Refresh list
 
-        dados: list[int | str] = ler_do_banco()
+    def delete_contact(e: ft.ControlEvent) -> None:
+        id_to_delete = e.control.data  # type: ignore
+        delete_from_database(id_to_delete)  # type: ignore
+        load_data()  # Refresh list
 
-        for contato in dados:
-            id_db = contato[0]
-            nome_db: str = contato[1]
-            tel_db: str = contato[2]
-            print(f"id_db={id_db}, nome_db={nome_db}, tel_db={tel_db}")
-            print(f"contato[0]={contato[0]}, contato[1]={contato[1]}, contato[2]={contato[2]}")
+    def load_data() -> None:
+        contact_list.controls.clear()
+        conctat_data: list[tuple[int, str, str]] = read_from__database()
+
+        for conctat in conctat_data:
+            id_db: int = conctat[0]
+            nome_db: str = conctat[1]
+            tel_db: str = conctat[2]
 
             linha = ft.Row(
                 controls=[
-                    ft.Text(value=f"{nome_db} \n{tel_db}", size=16, expand=True),
+                    ft.Text(value=f"{nome_db}\n{tel_db}", size=16, expand=True),
                     ft.IconButton(
-                        icon=ft.icons.DELETE,
+                        icon=ft.Icons.DELETE,
                         icon_color="red",
-                        # O data=id_db guarda o ID do banco no botão
-                        data=id_db,
-                        on_click=deletar_contato,
+                        data=id_db,  # Store ID in the button
+                        on_click=delete_contact,
                     ),
-                ]
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             )
-            lista_contatos.controls.append(linha)
-        page.update() # type: ignore
+            contact_list.controls.append(linha)
+        page.update()  # type: ignore
 
-    def adicionar_contato(e: ft.ControlEvent) -> None:
-        print(f"Inside Addictionar_copntato - nome_input.value={nome_input.value}")
+    def add_contact(e: ft.ControlEvent) -> None:
         if nome_input.value:
-            salvar_no_banco(nome: str =nome_input.value, telefone: str =telefone_input.value)
+            save_to_database(nome=str(nome_input.value), telefone=str(telephone_input.value))
             nome_input.value = ""
-            telefone_input.value = ""
-            carregar_dados()
+            telephone_input.value = ""
+            load_data()
+            nome_input.focus()  # Move cursor back to name
+            page.update()  # type: ignore
         else:
-            snack_bar = ft.SnackBar(ft.Text("Nome é Obrigatório"))
-            page.open(snack_bar)
+            snack_bar = ft.SnackBar(content=ft.Text(value="Name is a compulsory field"))
+            page.open(control=snack_bar)  # type: ignore
+            # page.snack_bar = ft.SnackBar(ft.Text("Name is a compulsory field"))
+            # page.snack_bar.open = True
             page.update()  # type: ignore
 
-    btn_salvar = ft.ElevatedButton(text="Salvar Contato", on_click=adicionar_contato)
+    save_btn = ft.ElevatedButton(text="Save contact", on_click=add_contact)
 
-    def deletar_contato(e: ft.ControlEvent) -> None:
-        id_para_deletar = e.control.data
-        deletar_do_banco(id_para_deletar)
-        carregar_dados()
+    # --- LAYOUT SETUP ---
 
+    # FIX: We add everything to the page only ONCE here.
     page.add(
-        ft.Text(value="Agenda Simples", size=24, weight=ft.FontWeight.BOLD),
+        ft.Text(value="Simple Telephone Rubrica", size=24, weight=ft.FontWeight.BOLD),
         nome_input,
-        telefone_input,
-        btn_salvar,
+        telephone_input,
+        save_btn,
         ft.Divider(),
-        ft.Text(value="Meus Contatos:", size=20),
-        lista_contatos,
+        ft.Text(value="Contacts menu:", size=20),
+        contact_list,
     )
 
-    carregar_dados()
+    # Initial data load
+    load_data()
 
 
-ft.app(target=main)
-
-
-# if __name__ == "__main__":
-#     ft.app(main)
+ft.app(target=main)  # type: ignore
