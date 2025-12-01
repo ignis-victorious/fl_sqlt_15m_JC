@@ -9,135 +9,126 @@ import flet as ft  # type: ignore
 #
 #  _______________________
 
-dados_db: str = "./storage/data/dados.db"
+
+#  name and location of database
+contact_data_db: str = "./storage/data/contact_data.db"
 
 
-def iniciar_banco() -> None:
-    con: Connection = sqlite3.connect(database=dados_db)
+#  Database creation and controls
+def start_db() -> None:
+    con: Connection = sqlite3.connect(database=contact_data_db)
     cur: Cursor = con.cursor()
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS contatos (
+        CREATE TABLE IF NOT EXISTS contact (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT,
-            telefone TEXT
+            telephone TEXT
         )
     """)
     con.commit()
     con.close()
 
 
-def ler_do_banco() -> list[int | str]:
-    con: Connection = sqlite3.connect(database=dados_db)
+def read_from_database() -> list[tuple[int, str, str]]:
+    con: Connection = sqlite3.connect(database=contact_data_db)
     cur: Cursor = con.cursor()
-    cur.execute("SELECT * FROM contatos")
-    resultado: list[int | str] = cur.fetchall()
-    print(resultado)
+    cur.execute("SELECT * FROM contact")
+    result: list[tuple[int, str, str]] = cur.fetchall()
     con.close()
-    return resultado
+    return result
 
 
-def salvar_no_banco(nome: str, telefone: str) -> None:
-    con: Connection = sqlite3.connect(database=dados_db)
+def save_to_database(nome: str, telephone: str) -> None:
+    con: Connection = sqlite3.connect(database=contact_data_db)
     cur: Cursor = con.cursor()
-    cur.execute("INSERT INTO contatos (nome, telefone) VALUES (?, ?)", (nome, telefone))
+    cur.execute("INSERT INTO contact (nome, telephone) VALUES (?, ?)", (nome, telephone))
     con.commit()
     con.close()
 
 
-def deletar_do_banco(id_contato: int) -> None:
-    con: Connection = sqlite3.connect(database=dados_db)
+def delete_from_database(id_contact: int) -> None:
+    con: Connection = sqlite3.connect(database=contact_data_db)
     cur: Cursor = con.cursor()
-    cur.execute("DELETE FROM contatos WHERE id = ?", (id_contato,))
+    cur.execute("DELETE FROM contact WHERE id = ?", (id_contact,))
     con.commit()
     con.close()
 
 
-# iniciar_banco()
-# salvar_no_banco(nome="Emagnu", telefone="+39-7172388386")
-# salvar_no_banco(nome="Elle", telefone="+44-123456789")
-# ler_do_banco()
-
-# print("Done!!!")
-# iniciar_banco()
-
-
+#  Create UI
 def main(page: ft.Page) -> None:
-    page.title = "Minha Agenda SQLite"
+    page.title = "SQLite Phonebook"
     page.window.width = 400
     page.window.height = 600
 
-    iniciar_banco()
+    # Initialise DB and table
+    start_db()
 
-    nome_input = ft.TextField(label="Nome", hint_text="Digite o nome")
-    telefone_input = ft.TextField(label="Telefone", hint_text="Digite o número")
-    print(f"nome_input={nome_input}, telefone_input={telefone_input}")
-    lista_contatos = ft.Column()
+    # Create page input fields
+    name_imput = ft.TextField(label="Name", hint_text="Enter the contact name")
+    telephone_input = ft.TextField(label="Mobile", hint_text="Enter the mobile number")
 
-    page.add(nome_input, telefone_input)
+    # Create a column that will contain the list of contacts
+    contact_list = ft.Column()
 
-    lista_contatos = ft.Column()
+    def delete_contact(e: ft.ControlEvent) -> None:
+        id_to_delete: int = e.control.data  # type: ignore
+        delete_from_database(id_to_delete)  # type: ignore
+        load_data()  # Refresh list
 
-    def carregar_dados() -> None:
-        lista_contatos.controls.clear()
+    def load_data() -> None:
+        contact_list.controls.clear()
+        contact_data: list[tuple[int, str, str]] = read_from_database()
 
-        dados: list[int | str] = ler_do_banco()
-
-        for contato in dados:
-            id_db = contato[0]
-            nome_db: str = contato[1]
-            tel_db: str = contato[2]
-            print(f"id_db={id_db}, nome_db={nome_db}, tel_db={tel_db}")
-            print(f"contato[0]={contato[0]}, contato[1]={contato[1]}, contato[2]={contato[2]}")
+        for contact in contact_data:
+            id_db: int = contact[0]
+            nome_db: str = contact[1]
+            tel_db: str = contact[2]
 
             linha = ft.Row(
                 controls=[
-                    ft.Text(value=f"{nome_db} \n{tel_db}", size=16, expand=True),
+                    ft.Text(value=f"{nome_db}\n{tel_db}", size=16, expand=True),
                     ft.IconButton(
-                        icon=ft.icons.DELETE,
+                        icon=ft.Icons.DELETE,
                         icon_color="red",
-                        # O data=id_db guarda o ID do banco no botão
-                        data=id_db,
-                        on_click=deletar_contato,
+                        data=id_db,  # Store ID in the button
+                        on_click=delete_contact,
                     ),
-                ]
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             )
-            lista_contatos.controls.append(linha)
-        page.update() # type: ignore
+            contact_list.controls.append(linha)
+        page.update()  # type: ignore
 
-    def adicionar_contato(e: ft.ControlEvent) -> None:
-        print(f"Inside Addictionar_copntato - nome_input.value={nome_input.value}")
-        if nome_input.value:
-            salvar_no_banco(nome: str =nome_input.value, telefone: str =telefone_input.value)
-            nome_input.value = ""
-            telefone_input.value = ""
-            carregar_dados()
+    def add_contact(e: ft.ControlEvent) -> None:
+        if name_imput.value:
+            save_to_database(nome=str(name_imput.value), telephone=str(telephone_input.value))
+            name_imput.value = ""
+            telephone_input.value = ""
+            load_data()
+            name_imput.focus()  # Move cursor back to name
+            page.update()  # type: ignore
         else:
-            snack_bar = ft.SnackBar(ft.Text("Nome é Obrigatório"))
-            page.open(snack_bar)
+            snack_bar = ft.SnackBar(content=ft.Text(value="Name is a compulsory field"))
+            page.open(control=snack_bar)  # type: ignore
+            # page.snack_bar = ft.SnackBar(ft.Text("Name is a compulsory field"))
+            # page.snack_bar.open = True
             page.update()  # type: ignore
 
-    btn_salvar = ft.ElevatedButton(text="Salvar Contato", on_click=adicionar_contato)
+    save_btn = ft.ElevatedButton(text="Save contact", on_click=add_contact)
 
-    def deletar_contato(e: ft.ControlEvent) -> None:
-        id_para_deletar = e.control.data
-        deletar_do_banco(id_para_deletar)
-        carregar_dados()
-
+    #  Layout - put it all together
     page.add(
-        ft.Text(value="Agenda Simples", size=24, weight=ft.FontWeight.BOLD),
-        nome_input,
-        telefone_input,
-        btn_salvar,
+        ft.Text(value="Simple Telephone Rubrica", size=24, weight=ft.FontWeight.BOLD),
+        name_imput,
+        telephone_input,
+        save_btn,
         ft.Divider(),
-        ft.Text(value="Meus Contatos:", size=20),
-        lista_contatos,
+        ft.Text(value="Contacts menu:", size=20),
+        contact_list,
     )
 
-    carregar_dados()
+    # Initial data load
+    load_data()
 
 
-ft.app(target=main)
-
-
-# if __name__ == "__main__":
-#     ft.app(main)
+ft.app(target=main)  # type: ignore
