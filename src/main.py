@@ -72,7 +72,7 @@ def main(page: ft.Page) -> None:
 
     def delete_contact(e: ft.ControlEvent) -> None:
         id_to_delete: int = e.control.data  # type: ignore
-        delete_from_database(id_to_delete)  # type: ignore
+        delete_from_database(id_contact=id_to_delete)  # type: ignore
         load_data()  # Refresh list
 
     def load_data() -> None:
@@ -101,7 +101,7 @@ def main(page: ft.Page) -> None:
 
     def add_contact(e: ft.ControlEvent) -> None:
         if name_imput.value:
-            save_to_database(nome=str(name_imput.value), telephone=str(telephone_input.value))
+            save_to_database(nome=str(object=name_imput.value), telephone=str(object=telephone_input.value))
             name_imput.value = ""
             telephone_input.value = ""
             load_data()
