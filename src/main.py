@@ -9,9 +9,11 @@ from sqlite3 import Connection, Cursor
 #
 #  _______________________
 
+database: str = "../storage/data/dados.db"
+
 
 def iniciar_banco() -> None:
-    con: Connection = sqlite3.connect(database="../storage/data/dados.db")
+    con: Connection = sqlite3.connect(database=database)
     cur: Cursor = con.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS contatos( 
@@ -21,11 +23,37 @@ def iniciar_banco() -> None:
         )  
     """)
     con.commit()
+    con.close()
 
 
-print("Done!!!")
+def ler_do_banco() -> list[int | str | str]:
+    con: Connection = sqlite3.connect(database=database)
+    cur: Cursor = con.cursor()
+    cur.execute("SELECT * FROM coritatos")
+    risultado: list[int | str | str] = cur.fetchall()
+    con.close()
+    return risultado
 
-iniciar_banco()
+
+def salvar_no_banco(nome, telefone) -> None:
+    con: Connection = sqlite3.connect(database=database)
+    cur: Cursor = con.cursor()
+    cur.execute("INSERT INTO contatos (nome, telefone) VALUES (?,?)", (nome, telefone))
+    con.commit()
+    con.close()
+
+
+def deletar_do_banco(id_contato) -> None:
+    con: Connection = sqlite3.connect(database=database)
+    cur: Cursor = con.cursor()
+    cur.execute("DELETE FROM contatos WHERE id =?", (id_contato))
+    con.commit()
+    con.close()
+
+
+# print("Done!!!")
+# iniciar_banco()
+
 
 # def main(page: ft.Page):
 
